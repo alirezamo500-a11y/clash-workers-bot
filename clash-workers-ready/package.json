@@ -1,0 +1,10 @@
+{
+  "name": "clash-workers-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Telegram Mini App for tracking Clash of Clans builder timers",
+  "main": "server.js",
+  "scripts": {"start": "node server.js"},
+  "engines": {"node": ">=18"},
+  "dependencies": {"express": "^4.21.2"}
+}
