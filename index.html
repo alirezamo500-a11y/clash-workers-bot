@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>مدیریت کارگرهای کلش</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101827;color:#f3f4f6;font-family:Tahoma,Arial;padding:18px}
+main{max-width:620px;margin:auto}h1{font-size:23px}h2{font-size:17px;margin-top:26px}
+.card{background:#1e293b;border:1px solid #334155;border-radius:15px;padding:15px;margin:12px 0}
+input,select,button{width:100%;padding:12px;border-radius:9px;border:1px solid #475569;margin:6px 0;background:#0f172a;color:white;font:inherit}
+button{background:#2563eb;border:0;font-weight:bold}button.danger{background:#991b1b}.muted{color:#94a3b8;font-size:13px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.timer{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.timer button{width:auto;padding:8px 12px}.error{color:#fca5a5}
+</style>
+</head>
+<body><main>
+<h1>🏗️ مدیریت کارگرهای کلش</h1>
+<p class="muted">زمان باقی‌مانده را وارد کن تا بعد از اتمام، ربات به تلگرام پیام بدهد.</p>
+<div id="status" class="muted">در حال اتصال…</div>
+<section class="card">
+<h2>افزودن اکانت</h2>
+<input id="accountName" placeholder="اسم اکانت (مثلاً اکانت اصلی)">
+<input id="townHall" placeholder="تاون‌هال (اختیاری)">
+<button onclick="addAccount()">ثبت اکانت</button>
+</section>
+<section class="card">
+<h2>ثبت زمان ارتقا</h2>
+<select id="accountSelect"></select>
+<div class="row"><input id="worker" placeholder="کارگر (مثلاً کارگر ۱)"><input id="task" placeholder="نوع ارتقا"></div>
+<input id="minutes" type="number" min="1" placeholder="چند دقیقه باقی مانده؟">
+<button onclick="addTimer()">شروع زمان‌سنج</button>
+</section>
+<h2>اکانت‌ها</h2><div id="accounts"></div>
+<h2>زمان‌سنج‌های فعال</h2><div id="timers"></div>
+</main>
+<script>
+const tg = window.Telegram?.WebApp; tg?.ready(); tg?.expand();
+const headers = {'Content-Type':'application/json','X-Telegram-Init-Data':tg?.initData || ''};
+async function api(url,method='GET',body){
+ const r=await fetch(url,{method,headers,body:body?JSON.stringify(body):undefined});
+ const d=await r.json(); if(!r.ok) throw Error(d.error||'خطا'); return d;
+}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+async function refresh(){
+ try{
+ const d=await api('/api/data'); document.getElementById('status').textContent='متصل شدی ✅';
+ document.getElementById('accountSelect').innerHTML=d.accounts.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
+ document.getElementById('accounts').innerHTML=d.accounts.map(a=>`<div class="card">${esc(a.name)} ${a.townHall?'· '+esc(a.townHall):''}<button class="danger" onclick="delAccount('${a.id}')">حذف اکانت</button></div>`).join('')||'<p class="muted">هنوز اکانتی اضافه نکردی.</p>';
+ document.getElementById('timers').innerHTML=d.timers.filter(t=>!t.notified).map(t=>{const a=d.accounts.find(x=>x.id===t.accountId);return `<div class="card timer"><div><b>${esc(a?.name||'اکانت')}</b><br>${esc(t.worker)} · ${esc(t.task)}<br><span class="muted">${new Date(t.endsAt).toLocaleString('fa-IR')}</span></div><button class="danger" onclick="delTimer('${t.id}')">حذف</button></div>`}).join('')||'<p class="muted">زمان‌سنج فعالی وجود ندارد.</p>';
+ }catch(e){document.getElementById('status').innerHTML='<span class="error">'+esc(e.message)+'</span>';}
+}
+async function addAccount(){try{await api('/api/accounts','POST',{name:accountName.value,townHall:townHall.value});accountName.value='';townHall.value='';refresh()}catch(e){alert(e.message)}}
+async function addTimer(){try{await api('/api/timers','POST',{accountId:accountSelect.value,worker:worker.value,task:task.value,minutes:minutes.value});worker.value='';task.value='';minutes.value='';refresh()}catch(e){alert(e.message)}}
+async function delAccount(id){if(confirm('این اکانت و زمان‌سنج‌هایش حذف شود؟')){await api('/api/accounts/'+id,'DELETE');refresh()}}
+async function delTimer(id){await api('/api/timers/'+id,'DELETE');refresh()}
+refresh();setInterval(refresh,30000);
+</script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+</body></html>
