@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#111827"><title>Clash Workers</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b1220;color:#f8fafc;font-family:Tahoma,Arial,sans-serif;padding:18px;line-height:1.8}.wrap{max-width:620px;margin:auto}.card{background:#172235;border:1px solid #29384e;border-radius:16px;padding:16px;margin:14px 0}h1{font-size:23px;margin:4px 0}h2{font-size:17px;margin:0 0 10px}.muted{color:#9fb0c7;font-size:13px}input,select,button{font:inherit;border-radius:10px;padding:11px;border:1px solid #40516a;width:100%;margin:5px 0;background:#0f1929;color:#fff}button{background:#2563eb;border:0;font-weight:bold;cursor:pointer}.secondary{background:#334155}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.timer{background:#0f1929;border-radius:10px;padding:10px;margin:8px 0}.timer strong{display:block}.danger{background:#9f1239}.hidden{display:none}.account-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+</style>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body><main class="wrap">
+<h1>🏗️ Clash Workers</h1><div class="muted">مدیریت زمان ارتقای سازنده‌ها و یادآوری در تلگرام</div>
+<div id="status" class="card">در حال آماده‌سازی برنامه...</div>
+<section class="card"><h2>➕ افزودن اکانت</h2><input id="accountName" placeholder="نام اکانت؛ مثلاً اکانت اصلی"><button onclick="addAccount()">افزودن اکانت</button></section>
+<div id="accounts"></div>
+</main>
+<script>
+const tg = window.Telegram?.WebApp; if(tg){tg.ready();tg.expand();}
+const headers={'Content-Type':'application/json','X-Telegram-Init-Data':tg?.initData||''};
+let state={accounts:[]};
+const statusEl=document.getElementById('status');
+async function api(url,opts={}){const r=await fetch(url,{...opts,headers:{...headers,...(opts.headers||{})}});const d=await r.json();if(!r.ok)throw new Error(d.error||'خطا');return d;}
+async function load(){try{state=await api('/api/state');render();statusEl.textContent='✅ متصل شدی. برای دریافت پیام، ابتدا ربات را در تلگرام با /start فعال کن.';}catch(e){statusEl.textContent=e.message+' اگر هنوز ربات را فعال نکردی، ابتدا در ربات /start بفرست.';}}
+async function save(){try{await api('/api/state',{method:'POST',body:JSON.stringify(state)});}catch(e){alert(e.message);}}
+function addAccount(){const name=document.getElementById('accountName').value.trim();if(!name)return alert('نام اکانت را وارد کن.');state.accounts.push({id:Date.now().toString(),name,timers:[]});document.getElementById('accountName').value='';save();render();}
+function addTimer(id){const a=state.accounts.find(x=>x.id===id);const builder=prompt('نام سازنده یا ارتقا را وارد کن:','سازنده ۱');if(!builder)return;const mins=Number(prompt('چند دقیقه تا پایان باقی مانده؟','60'));if(!Number.isFinite(mins)||mins<=0)return alert('زمان معتبر وارد کن.');a.timers.push({id:Date.now().toString(),builder,endAt:Date.now()+mins*60000,notified:false});save();render();}
+function delAccount(id){if(!confirm('این اکانت حذف شود؟'))return;state.accounts=state.accounts.filter(a=>a.id!==id);save();render();}
+function delTimer(aid,tid){const a=state.accounts.find(x=>x.id===aid);a.timers=a.timers.filter(t=>t.id!==tid);save();render();}
+function render(){const root=document.getElementById('accounts');root.innerHTML='';state.accounts.forEach(a=>{const box=document.createElement('section');box.className='card';const head=document.createElement('div');head.className='account-head';const title=document.createElement('h2');title.textContent='🏰 '+a.name;head.append(title);const remove=document.createElement('button');remove.className='danger';remove.textContent='حذف اکانت';remove.style.width='auto';remove.onclick=()=>delAccount(a.id);head.append(remove);box.append(head);const add=document.createElement('button');add.textContent='➕ ثبت زمان سازنده';add.onclick=()=>addTimer(a.id);box.append(add);(a.timers||[]).forEach(t=>{const d=document.createElement('div');d.className='timer';const label=document.createElement('strong');label.textContent=t.builder;const remain=document.createElement('span');remain.dataset.end=t.endAt;remain.textContent=remaining(t.endAt);const del=document.createElement('button');del.className='secondary';del.textContent='حذف زمان';del.onclick=()=>delTimer(a.id,t.id);d.append(label,remain,del);box.append(d);});root.append(box);});}
+function remaining(end){const ms=end-Date.now();if(ms<=0)return 'زمان تمام شده';const m=Math.ceil(ms/60000);return `زمان باقی‌مانده: ${Math.floor(m/60)} ساعت و ${m%60} دقیقه`;}
+setInterval(()=>document.querySelectorAll('[data-end]').forEach(el=>el.textContent=remaining(Number(el.dataset.end))),10000);
+load();
+</script></body></html>
